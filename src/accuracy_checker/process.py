@@ -40,6 +40,9 @@ class process:
         self.__output = self.__executor.execute_process(command_line)
         if type(self.__output) is not list:
             self.__output = self.__output.decode("utf-8").split('\n')
+        with open(r"logs_test.txt", "w") as file:
+            for line in self.__output:
+                file.write(line + '\n')
 
     def get_result_parameters(self):
         return result.parser_test_results(self.__output)
