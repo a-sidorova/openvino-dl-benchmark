@@ -49,9 +49,10 @@ def add_benchmark_arguments(command_line, machine):
 def add_accuracy_checker_arguments(command_line, machine):
     if machine.accuracy_checker.config:
         command_line = '{0} -ac {1} --accuracy_checker_executor {2} --accuracy_checker_res_file {3} \
-        --accuracy_checker_log_file {4}'.format(command_line, machine.accuracy_checker.config,
-                                                machine.accuracy_checker.executor, machine.accuracy_checker.res_file,
-                                                machine.accuracy_checker.log_file)
+        --accuracy_checker_log_file {4} --accuracy_checker_definitions {5} --accuracy_checker_source {6}'.format(
+            command_line, machine.accuracy_checker.config, machine.accuracy_checker.executor,
+            machine.accuracy_checker.res_file, machine.accuracy_checker.log_file, machine.accuracy_checker.definitions,
+            machine.accuracy_checker.datasets)
     return command_line
 
 

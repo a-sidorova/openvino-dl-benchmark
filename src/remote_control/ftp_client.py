@@ -10,21 +10,21 @@ import subprocess
 class launcher(metaclass=abc.ABCMeta):
     def __init__(self, target, path_to_ftp_client, params_config, executor, os_type, result, logs):
         self.target = target
-        self.path_to_target = path_to_ftp_client + "//..//" + self.target
+        self.path_to_target = os.path.normpath(path_to_ftp_client + "//..//" + self.target)
         self.executor = executor
         self.os_type = os_type
         self.result = os.path.join(path_to_ftp_client, result)
         self.logs = os.path.join(path_to_ftp_client, logs)
-        self.params_config = params_config
-        self.config = os.path.join(self.target, params_config[1])
+        self.source_config = params_config
+        self.local_config = os.path.join(self.path_to_target, os.path.basename(self.source_config))
 
     @abc.abstractmethod
     def _get_command_line(self):
         pass
 
     def load_config(self, ftp_connection):
-        with open(self.config, 'wb') as config_file:
-            ftp_connection.retrbinary('RETR {}'.format(self.params_config), config_file.write)
+        with open(self.local_config, 'wb') as config_file:
+            ftp_connection.retrbinary('RETR {}'.format(self.source_config), config_file.write)
 
     def download_result(self, ftp_connection):
         result_table = open(self.result, 'rb')
@@ -65,7 +65,7 @@ class benchmark_launcher(launcher):
         super().__init__("benchmark", path_to_ftp_client, params_config, executor, os_type, result, logs)
 
     def _get_command_line(self):
-        return '-c {0} -r {1} --executor_type {2}'.format(self.config, self.result, self.executor)
+        return 'inference_benchmark.py -c {0} -r {1} --executor_type {2}'.format(self.local_config, self.result, self.executor)
 
 
 class accuracy_checker_launcher(launcher):
@@ -75,8 +75,10 @@ class accuracy_checker_launcher(launcher):
         self.definitions = definitions
 
     def _get_command_line(self):
-        return '-c {0} -s {1} -r {2} -d {3} --executor_type {4}'.format(self.config, self.datasets, self.result,
-                                                                        self.definitions, self.executor)
+        return 'accuracy_checker.py -c {0} -s {1} -r {2} -d {3} --executor_type {4}'.format(self.local_config,
+                                                                                            self.datasets, self.result,
+                                                                                            self.definitions,
+                                                                                            self.executor)
 
 
 def build_parser():
@@ -133,7 +135,8 @@ def main():
     if param_list.accuracy_checker_config:
         accuracy_checker = accuracy_checker_launcher(path_to_ftp_client, param_list.accuracy_checker_config,
                                                      param_list.accuracy_checker_executor, param_list.os_type,
-                                                     param_list.benchmark_res_file, param_list.benchmark_log_file,
+                                                     param_list.accuracy_checker_res_file,
+                                                     param_list.accuracy_checker_log_file,
                                                      param_list.accuracy_checker_source,
                                                      param_list.accuracy_checker_definitions)
 
