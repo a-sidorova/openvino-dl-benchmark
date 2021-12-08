@@ -84,7 +84,7 @@ def parse_config(config):
             password=available_machine.getElementsByTagName(CONFIG_PASSWORD_TAG)[0].firstChild.data,
             os_type=available_machine.getElementsByTagName(CONFIG_OS_TAG)[0].firstChild.data,
             path_to_ftp_client=available_machine.getElementsByTagName(CONFIG_FTP_CLIENT_PATH_TAG)[0].firstChild.data,
-            benchmark=benchmark.parse(available_machine),
-            accuracy_checker=accuracy_checker.parse(available_machine)
+            benchmark_info=benchmark.parse(available_machine),
+            accuracy_checker_info=accuracy_checker.parse(available_machine)
         ))
     return machine_list
