@@ -89,34 +89,38 @@ def build_parser():
 def infer_async(exec_net, number_iter, get_slice):
     result = None
     requests = exec_net.requests
-    for i in range(len(requests)):
-        utils.set_input_to_blobs(requests[i], get_slice(i))
-    iteration = len(requests)
-    inference_time = time()
-    for request in requests:
-        request.async_infer()
-    while iteration < number_iter:
-        idle_id = exec_net.get_idle_request_id()
-        if idle_id < 0:
-            exec_net.wait(num_requests=1)
+    full_time = 0
+    repeated_count = 5
+    for _ in range(repeated_count):
+        for i in range(len(requests)):
+            utils.set_input_to_blobs(requests[i], get_slice(i))
+        iteration = len(requests)
+        inference_time = time()
+        for request in requests:
+            request.async_infer()
+        while iteration < number_iter:
             idle_id = exec_net.get_idle_request_id()
-        utils.set_input_to_blobs(requests[idle_id], get_slice(iteration))
-        requests[idle_id].async_infer()
-        iteration += 1
-    exec_net.wait()
-    inference_time = time() - inference_time
+            if idle_id < 0:
+                exec_net.wait(num_requests=1)
+                idle_id = exec_net.get_idle_request_id()
+            utils.set_input_to_blobs(requests[idle_id], get_slice(iteration))
+            requests[idle_id].async_infer()
+            iteration += 1
+        exec_net.wait()
+        inference_time = time() - inference_time
+        full_time += inference_time
     if number_iter == 1:
         list = [copy(request.outputs) for request in requests]
         result = dict.fromkeys(list[0].keys(), None)
         for key in result:
             result[key] = np.concatenate([array[key] for array in list], axis=0)
-    return result, inference_time
+    return result, full_time / repeated_count
 
 
 def process_result(inference_time, batch_size, iteration_count):
     average_time = inference_time / iteration_count
     fps = pp.calculate_fps(batch_size * iteration_count, inference_time)
-    return average_time, fps
+    return inference_time, fps
 
 
 def result_output(average_time, fps, log):

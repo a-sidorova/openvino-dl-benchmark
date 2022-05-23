@@ -6,6 +6,7 @@ import postprocessing_data as pp
 from io_adapter import io_adapter
 from transformer import transformer
 from io_model_wrapper import openvino_io_model_wrapper
+from time import time
 
 
 def build_argparser():
@@ -75,13 +76,19 @@ def infer_sync(exec_net, number_iter, get_slice):
     request = exec_net.requests[0]
     result = None
     time_infer = []
-    for i in range(number_iter):
-        utils.set_input_to_blobs(request, get_slice(i))
-        request.infer()
-        time_infer.append(request.latency/1000)
+    full_time = 0
+    repeated_count = 5
+    for _ in range(repeated_count):
+        inference_time = time()
+        for i in range(number_iter):
+            utils.set_input_to_blobs(request, get_slice(i))
+            request.infer()
+            time_infer.append(request.latency/1000)
+        inference_time = time() - inference_time
+        full_time += inference_time
     if number_iter == 1:
         result = request.outputs
-    return result, time_infer
+    return result, time_infer, full_time / repeated_count
 
 
 def process_result(inference_time, batch_size, min_infer_time):
@@ -135,13 +142,13 @@ def main():
         log.info('Create executable network')
         exec_net = utils.load_network(iecore, net, args.device, args.priority, 1)
         log.info('Starting inference ({} iterations) on {}'.format(args.number_iter, args.device))
-        result, time = infer_sync(exec_net, args.number_iter, io.get_slice_input)
+        result, time, full_time = infer_sync(exec_net, args.number_iter, io.get_slice_input)
         average_time, latency, fps = process_result(time, args.batch_size, args.mininfer)
         if not args.raw_output:
             io.process_output(result, log)
-            result_output(average_time, fps, latency, log)
+            result_output(full_time, fps, latency, log)
         else:
-            raw_result_output(average_time, fps, latency)
+            raw_result_output(full_time, fps, latency)
         del net
         del exec_net
         del iecore
